@@ -22,16 +22,61 @@ export const AuthProvider = ({ children }) => {
 
     if (storedToken && storedUser) {
       setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      const userData = JSON.parse(storedUser);
+      // Ensure userType is set
+      if (!userData.userType) {
+        let userType = "admin";
+        try {
+          const tokenPayload = JSON.parse(atob(storedToken.split('.')[1]));
+          if (tokenPayload.type === "student") {
+            userType = "student";
+          } else if (tokenPayload.type === "school") {
+            userType = "school";
+          } else if (tokenPayload.role === "admin" || tokenPayload.type === "admin") {
+            userType = "admin";
+          }
+        } catch (e) {
+          if (userData.studentId) {
+            userType = "student";
+          } else if (userData.schoolId) {
+            userType = "school";
+          }
+        }
+        userData.userType = userType;
+        localStorage.setItem("user", JSON.stringify(userData));
+      }
+      setUser(userData);
     }
     setLoading(false);
   }, []);
 
   const login = (userData, authToken) => {
-    setUser(userData);
+    // Determine user type from token or user data
+    let userType = "admin"; // default
+    try {
+      const tokenPayload = JSON.parse(atob(authToken.split('.')[1]));
+      if (tokenPayload.type === "student") {
+        userType = "student";
+      } else if (tokenPayload.type === "school") {
+        userType = "school";
+      } else if (tokenPayload.role === "admin" || tokenPayload.type === "admin") {
+        userType = "admin";
+      }
+    } catch (e) {
+      // If token parsing fails, try to infer from user data
+      if (userData.type === "student" || userData.studentId) {
+        userType = "student";
+      } else if (userData.type === "school" || userData.schoolId) {
+        userType = "school";
+      }
+    }
+    
+    const userWithType = { ...userData, userType };
+    setUser(userWithType);
     setToken(authToken);
     localStorage.setItem("token", authToken);
-    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("user", JSON.stringify(userWithType));
+    localStorage.setItem("userType", userType);
   };
 
   const logout = () => {
@@ -39,11 +84,17 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("userType");
   };
 
   const updateUser = (userData) => {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
+  };
+
+  const getUserType = () => {
+    if (!user) return null;
+    return user.userType || (user.studentId ? "student" : user.schoolId ? "school" : "admin");
   };
 
   const value = {
@@ -54,6 +105,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     updateUser,
     isAuthenticated: !!token,
+    userType: getUserType(),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

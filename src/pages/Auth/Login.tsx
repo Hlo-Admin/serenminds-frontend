@@ -87,9 +87,16 @@ const Login: React.FC = () => {
         // Use the login function from AuthContext
         login(data.data.user, data.data.token);
 
-        // Redirect to the intended page or dashboard
-        const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || "/dashboard";
-        navigate(from, { replace: true });
+        // Redirect based on user role - admin should only access admin routes
+        const userRole = data.data.user.role || "user";
+        const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
+        
+        // Only allow redirect to admin routes for admin users
+        if (from && (from.startsWith("/student") || from.startsWith("/school"))) {
+          navigate("/dashboard", { replace: true });
+        } else {
+          navigate(from || "/dashboard", { replace: true });
+        }
       } else {
         setErrors({ submit: data.message || "Login failed" });
       }
@@ -200,12 +207,6 @@ const Login: React.FC = () => {
           <span className="mr-2">New on our platform?</span>
           <Link to="/register" className="text-[#1cc5b7] no-underline text-sm transition-colors font-medium hover:text-[#179e91] hover:underline">
             Create an account
-          </Link>
-        </div>
-        <div className="text-center text-[0.97rem] text-gray-500 mt-2 font-normal">
-          <span className="mr-2">Student?</span>
-          <Link to="/student/login" className="text-[#1cc5b7] no-underline text-sm transition-colors font-medium hover:text-[#179e91] hover:underline">
-            Student Login
           </Link>
         </div>
       </div>

@@ -27,7 +27,7 @@ const StudentLogin: React.FC = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState<boolean>(false);
 
-  const SERVER_URL = `${API_BASE_URL}/auth/login`;
+  const SERVER_URL = `${API_BASE_URL}/student-auth/login`;
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -87,9 +87,15 @@ const StudentLogin: React.FC = () => {
         // Use the login function from AuthContext
         login(data.data.user, data.data.token);
 
-        // Redirect to student dashboard instead of regular dashboard
-        const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || "/student/dashboard";
-        navigate(from, { replace: true });
+        // Redirect to student dashboard - students should only access student routes
+        const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
+        
+        // Only allow redirect to student routes
+        if (from && !from.startsWith("/student")) {
+          navigate("/student/dashboard", { replace: true });
+        } else {
+          navigate(from || "/student/dashboard", { replace: true });
+        }
       } else {
         setErrors({ submit: data.message || "Login failed" });
       }
@@ -197,9 +203,9 @@ const StudentLogin: React.FC = () => {
         </form>
 
         <div className="text-center text-[0.97rem] text-gray-500 mt-5 font-normal">
-          <span className="mr-2">Not a student?</span>
-          <Link to="/login" className="text-[#1cc5b7] no-underline text-sm transition-colors font-medium hover:text-[#179e91] hover:underline">
-            Admin Login
+          <span className="mr-2">New student?</span>
+          <Link to="/student/register" className="text-[#1cc5b7] no-underline text-sm transition-colors font-medium hover:text-[#179e91] hover:underline">
+            Create an account
           </Link>
         </div>
       </div>

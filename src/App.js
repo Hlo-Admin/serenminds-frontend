@@ -34,9 +34,11 @@ import StudentLogin from "./pages/Auth/StudentLogin.tsx";
 import SchoolLogin from "./pages/Auth/SchoolLogin.tsx";
 import Register from "./pages/Auth/Register.tsx";
 import SchoolRegister from "./pages/Auth/SchoolRegister.tsx";
+import StudentRegister from "./pages/Auth/StudentRegister.tsx";
 import ForgotPassword from "./pages/Auth/ForgotPassword.tsx";
 import ResetPassword from "./pages/Auth/ResetPassword.tsx";
 import Countries from "./pages/MasterData/Countries.tsx";
+import Welcome from "./pages/Welcome.tsx";
 // Import School pages
 import SchoolDashboard from "./pages/School/SchoolDashboard.tsx";
 import SchoolOverview from "./pages/School/Overview.tsx";
@@ -65,13 +67,14 @@ import {
 
 function AppContent() {
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userType } = useAuth();
   const authRoutes = [
     "/login",
     "/student/login",
     "/school/login",
     "/register",
     "/school/register",
+    "/student/register",
     "/forgot-password",
     "/reset-password",
   ];
@@ -83,15 +86,37 @@ function AppContent() {
   // Check if current path is a school route
   const isSchoolRoute = location.pathname.startsWith("/school");
 
-  // Redirect to appropriate dashboard if user is already authenticated and trying to access auth pages
-  if (isAuthenticated && authRoutes.includes(location.pathname)) {
-    if (location.pathname === "/student/login") {
+  // If user is authenticated and on root or welcome page, redirect to dashboard
+  if (isAuthenticated && (location.pathname === "/" || location.pathname === "/welcome")) {
+    if (userType === "student") {
       return <Navigate to="/student/dashboard" replace />;
     }
-    if (location.pathname === "/school/login" || location.pathname === "/school/register") {
+    if (userType === "school") {
       return <Navigate to="/school/dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;
+  }
+
+  // Redirect to appropriate dashboard if user is already authenticated and trying to access auth pages
+  if (isAuthenticated && authRoutes.includes(location.pathname)) {
+    if (location.pathname.startsWith("/student")) {
+      return <Navigate to="/student/dashboard" replace />;
+    }
+    if (location.pathname.startsWith("/school")) {
+      return <Navigate to="/school/dashboard" replace />;
+    }
+    if (userType === "student") {
+      return <Navigate to="/student/dashboard" replace />;
+    }
+    if (userType === "school") {
+      return <Navigate to="/school/dashboard" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Show welcome page or auth pages for unauthenticated users
+  if (location.pathname === "/" || location.pathname === "/welcome") {
+    return <Welcome />;
   }
 
   if (authRoutes.includes(location.pathname)) {
@@ -102,9 +127,10 @@ function AppContent() {
         <Route path="/school/login" element={<SchoolLogin />} />
         <Route path="/register" element={<Register />} />
         <Route path="/school/register" element={<SchoolRegister />} />
+        <Route path="/student/register" element={<StudentRegister />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
   }

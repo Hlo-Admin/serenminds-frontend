@@ -100,6 +100,7 @@ const Register: React.FC = () => {
 
       if (response.ok) {
         login(data.data.user, data.data.token);
+        // Master admin should only access admin routes
         navigate("/dashboard");
       } else {
         setErrors({ submit: data.message || "Registration failed" });

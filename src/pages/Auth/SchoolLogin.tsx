@@ -87,9 +87,15 @@ const SchoolLogin: React.FC = () => {
         // Use the login function from AuthContext
         login(data.data.user, data.data.token);
 
-        // Redirect to school dashboard
-        const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || "/school/dashboard";
-        navigate(from, { replace: true });
+        // Redirect to school dashboard - school users should only access school routes
+        const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
+        
+        // Only allow redirect to school routes
+        if (from && !from.startsWith("/school")) {
+          navigate("/school/dashboard", { replace: true });
+        } else {
+          navigate(from || "/school/dashboard", { replace: true });
+        }
       } else {
         setErrors({ submit: data.message || "Login failed" });
       }
@@ -200,12 +206,6 @@ const SchoolLogin: React.FC = () => {
           <span className="mr-2">New school?</span>
           <Link to="/school/register" className="text-[#1cc5b7] no-underline text-sm transition-colors font-medium hover:text-[#179e91] hover:underline">
             Register your school
-          </Link>
-        </div>
-        <div className="text-center text-[0.97rem] text-gray-500 mt-2 font-normal">
-          <span className="mr-2">Regular user?</span>
-          <Link to="/login" className="text-[#1cc5b7] no-underline text-sm transition-colors font-medium hover:text-[#179e91] hover:underline">
-            Regular Login
           </Link>
         </div>
       </div>
