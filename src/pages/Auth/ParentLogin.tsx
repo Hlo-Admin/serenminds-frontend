@@ -1,0 +1,220 @@
+import React, { useState, ChangeEvent, FormEvent } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+
+interface FormData {
+  email: string;
+  password: string;
+  rememberMe: boolean;
+}
+
+interface FormErrors {
+  email?: string;
+  password?: string;
+  submit?: string;
+}
+
+const ParentLogin: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+  const [formData, setFormData] = useState<FormData>({
+    email: "",
+    password: "",
+    rememberMe: false,
+  });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+    // Clear error when user starts typing
+    if (errors[name as keyof FormErrors]) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: "",
+      }));
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+
+    if (!formData.email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Email is invalid";
+    }
+
+    if (!formData.password) {
+      newErrors.password = "Password is required";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Static authentication for parent@demo.com / 123456
+      if (formData.email === "parent@demo.com" && formData.password === "123456") {
+        // Create mock user data and token
+        const mockUser = {
+          id: 1,
+          name: "John Parent",
+          email: "parent@demo.com",
+          role: "parent",
+          type: "parent",
+        };
+
+        // Create a mock JWT token (in real app, this would come from backend)
+        const mockToken = btoa(JSON.stringify({
+          userId: 1,
+          email: "parent@demo.com",
+          role: "parent",
+          type: "parent",
+          exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours
+        }));
+
+        // Use the login function from AuthContext
+        login(mockUser, mockToken);
+
+        // Redirect to parent dashboard
+        const from = (location.state as { from?: { pathname?: string } })?.from?.pathname;
+        
+        // Only allow redirect to parent routes
+        if (from && !from.startsWith("/parent")) {
+          navigate("/parent/dashboard", { replace: true });
+        } else {
+          navigate(from || "/parent/dashboard", { replace: true });
+        }
+      } else {
+        setErrors({ submit: "Invalid email or password" });
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      setErrors({ submit: "Network error. Please try again." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen bg-gray-50 justify-center items-center">
+      <div className="hidden lg:flex flex-[1.5] items-center justify-center bg-gray-50 rounded-l-[18px]">
+        <img
+          src="/student-login.png"
+          alt="Login Illustration"
+          className="max-w-[70%] h-auto rounded-xl"
+        />
+      </div>
+      <div className="flex flex-1 flex-col justify-center items-center bg-white shadow-[0_2px_24px_0_rgba(0,0,0,0.04)] rounded-r-[18px] lg:rounded-l-none rounded-[18px] lg:rounded-r-[18px] p-10 lg:p-8 min-w-[320px] w-full lg:w-auto">
+        <div className="text-xl font-bold text-gray-400 mb-6 flex items-center justify-center">
+          <img
+            src="/logo.png"
+            alt="Serene Minds Logo"
+            className="h-8 align-middle"
+          />
+        </div>
+        <h2 className="m-0 mb-2 text-xl text-gray-900 font-semibold tracking-tight">
+          Welcome Back, Parent!{" "}
+          <span role="img" aria-label="wave">
+            👨‍👩‍👧‍👦
+          </span>
+        </h2>
+        <p className="text-gray-500 mb-6 text-base font-normal">
+          Sign in to monitor your children's wellbeing and progress
+        </p>
+
+        <form className="w-full max-w-[320px] flex flex-col gap-3 bg-transparent shadow-none" onSubmit={handleSubmit}>
+          <label className="mb-1 text-gray-700 text-[0.97rem] font-medium">Email</label>
+          <input
+            type="email"
+            name="email"
+            placeholder="parent@example.com"
+            value={formData.email}
+            onChange={handleChange}
+            className={`py-2.5 px-4 mb-0.5 border rounded-lg text-base bg-gray-50 outline-none transition-colors ${
+              errors.email
+                ? "border-red-500 bg-red-50 focus:border-red-500"
+                : "border-gray-300 focus:border-[#1cc5b7] focus:bg-white focus:border-[1.5px]"
+            }`}
+            required
+          />
+          {errors.email && (
+            <span className="text-red-500 text-sm mb-0.5 block">{errors.email}</span>
+          )}
+
+          <div className="flex justify-between items-center mb-0.5">
+            <label className="mb-1 text-gray-700 text-[0.97rem] font-medium">Password</label>
+            <Link to="/forgot-password" className="text-[#1cc5b7] no-underline text-sm transition-colors font-medium hover:text-[#179e91] hover:underline">
+              Forgot Password?
+            </Link>
+          </div>
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            value={formData.password}
+            onChange={handleChange}
+            className={`py-2.5 px-4 mb-0.5 border rounded-lg text-base bg-gray-50 outline-none transition-colors ${
+              errors.password
+                ? "border-red-500 bg-red-50 focus:border-red-500"
+                : "border-gray-300 focus:border-[#1cc5b7] focus:bg-white focus:border-[1.5px]"
+            }`}
+            required
+          />
+          {errors.password && (
+            <span className="text-red-500 text-sm mb-0.5 block">{errors.password}</span>
+          )}
+
+          <div className="flex justify-between items-center mb-0.5">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                name="rememberMe"
+                checked={formData.rememberMe}
+                onChange={handleChange}
+                className="mr-2"
+              />{" "}
+              Remember Me
+            </label>
+          </div>
+
+          {errors.submit && (
+            <span className="text-red-500 text-sm mb-0.5 block">{errors.submit}</span>
+          )}
+
+          <button
+            type="submit"
+            className="bg-[#1cc5b7] text-white border-none rounded-lg py-3 text-lg font-semibold cursor-pointer mt-2 mb-4 transition-colors hover:bg-[#179e91] disabled:bg-gray-300 disabled:cursor-not-allowed shadow-none"
+            disabled={loading}
+          >
+            {loading ? "Signing In..." : "Parent Login"}
+          </button>
+        </form>
+
+        <div className="text-center text-[0.97rem] text-gray-500 mt-5 font-normal">
+          <span className="mr-2">New parent?</span>
+          <Link to="/parent/register" className="text-[#1cc5b7] no-underline text-sm transition-colors font-medium hover:text-[#179e91] hover:underline">
+            Create an account
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ParentLogin;
+

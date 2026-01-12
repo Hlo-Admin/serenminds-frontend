@@ -9,8 +9,10 @@ import StudentSidebar from "./components/StudentSidebar.jsx";
 import StudentMobileSidebar from "./components/StudentMobileSidebar.jsx";
 import SchoolSidebar from "./components/SchoolSidebar.tsx";
 import SchoolMobileSidebar from "./components/SchoolMobileSidebar.tsx";
+import ParentSidebar from "./components/ParentSidebar.tsx";
+import ParentMobileSidebar from "./components/ParentMobileSidebar.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
-import Reports from "./pages/Reports.tsx";
+import AdminReports from "./pages/Reports.tsx";
 import Graph from "./pages/Graph.tsx";
 import Cities from "./pages/MasterData/City.tsx";
 import States from "./pages/MasterData/State.tsx";
@@ -32,6 +34,7 @@ import Pleasantness from "./pages/MasterData/Pleasantness.tsx";
 import Login from "./pages/Auth/Login.tsx";
 import StudentLogin from "./pages/Auth/StudentLogin.tsx";
 import SchoolLogin from "./pages/Auth/SchoolLogin.tsx";
+import ParentLogin from "./pages/Auth/ParentLogin.tsx";
 import Register from "./pages/Auth/Register.tsx";
 import SchoolRegister from "./pages/Auth/SchoolRegister.tsx";
 import StudentRegister from "./pages/Auth/StudentRegister.tsx";
@@ -64,6 +67,14 @@ import {
   Notifications,
   PredefinedList,
 } from "./pages/Student";
+// Import Parent pages
+import ParentDashboard from "./pages/Parent/ParentDashboard.tsx";
+import Children from "./pages/Parent/Children.tsx";
+import ChildMoodTracking from "./pages/Parent/ChildMoodTracking.tsx";
+import ParentNotifications from "./pages/Parent/Notifications.tsx";
+import ParentProfile from "./pages/Parent/Profile.tsx";
+import ParentCalendar from "./pages/Parent/Calendar.tsx";
+import Reports from "./pages/Parent/Reports.tsx";
 
 function AppContent() {
   const location = useLocation();
@@ -72,6 +83,7 @@ function AppContent() {
     "/login",
     "/student/login",
     "/school/login",
+    "/parent/login",
     "/register",
     "/school/register",
     "/student/register",
@@ -85,6 +97,8 @@ function AppContent() {
   const isStudentRoute = location.pathname.startsWith("/student");
   // Check if current path is a school route
   const isSchoolRoute = location.pathname.startsWith("/school");
+  // Check if current path is a parent route
+  const isParentRoute = location.pathname.startsWith("/parent");
 
   // If user is authenticated and on root or welcome page, redirect to dashboard
   if (isAuthenticated && (location.pathname === "/" || location.pathname === "/welcome")) {
@@ -93,6 +107,9 @@ function AppContent() {
     }
     if (userType === "school") {
       return <Navigate to="/school/dashboard" replace />;
+    }
+    if (userType === "parent") {
+      return <Navigate to="/parent/dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;
   }
@@ -105,11 +122,17 @@ function AppContent() {
     if (location.pathname.startsWith("/school")) {
       return <Navigate to="/school/dashboard" replace />;
     }
+    if (location.pathname.startsWith("/parent")) {
+      return <Navigate to="/parent/dashboard" replace />;
+    }
     if (userType === "student") {
       return <Navigate to="/student/dashboard" replace />;
     }
     if (userType === "school") {
       return <Navigate to="/school/dashboard" replace />;
+    }
+    if (userType === "parent") {
+      return <Navigate to="/parent/dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;
   }
@@ -125,6 +148,7 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/student/login" element={<StudentLogin />} />
         <Route path="/school/login" element={<SchoolLogin />} />
+        <Route path="/parent/login" element={<ParentLogin />} />
         <Route path="/register" element={<Register />} />
         <Route path="/school/register" element={<SchoolRegister />} />
         <Route path="/student/register" element={<StudentRegister />} />
@@ -144,6 +168,8 @@ function AppContent() {
             <StudentSidebar />
           ) : isSchoolRoute ? (
             <SchoolSidebar />
+          ) : isParentRoute ? (
+            <ParentSidebar />
           ) : (
             <Sidebar />
           )}
@@ -159,6 +185,11 @@ function AppContent() {
             isOpen={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
           />
+        ) : isParentRoute ? (
+          <ParentMobileSidebar
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+          />
         ) : (
           <MobileSidebar
             isOpen={sidebarOpen}
@@ -170,7 +201,7 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/reports" element={<Reports />} />
+            <Route path="/reports" element={<AdminReports />} />
             <Route path="/graph" element={<Graph />} />
             <Route path="/master/city" element={<Cities />} />
             <Route path="/master/state" element={<States />} />
@@ -220,6 +251,16 @@ function AppContent() {
               path="/student/predefined-list"
               element={<PredefinedList />}
             />
+
+            {/* Parent Pages */}
+            <Route path="/parent/dashboard" element={<ParentDashboard />} />
+            <Route path="/parent/children" element={<Children />} />
+            <Route path="/parent/children/:id/mood-tracking" element={<ChildMoodTracking />} />
+            <Route path="/parent/children/:id/profile" element={<ParentProfile />} />
+            <Route path="/parent/notifications" element={<ParentNotifications />} />
+            <Route path="/parent/profile" element={<ParentProfile />} />
+            <Route path="/parent/calendar" element={<ParentCalendar />} />
+            <Route path="/parent/reports" element={<Reports />} />
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

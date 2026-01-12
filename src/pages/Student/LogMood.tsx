@@ -83,9 +83,9 @@ const LogMood: React.FC = () => {
     category: "",
     categoryId: null,
     addNote: "",
-    // Default to mid‑point on a 1–10 scale
-    pleasantness: 5,
-    impact: 5,
+    // Default to mid‑point on a 1–7 scale
+    pleasantness: 4,
+    impact: 4,
     emotion: "",
     calculatedEmotion: "",
     calculatedZone: "",
@@ -331,29 +331,24 @@ const LogMood: React.FC = () => {
     };
   }, []);
 
-  // Handle subcategory input change
+  // Handle "What is on top of your mind?" input change (uses subcategory data)
   const handleSubCategoryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Reset subCategoryId when user types
+    // Reset subCategoryId and categoryId when user types
     setFormData({
       ...formData,
       subCategory: value,
       subCategoryId: null,
+      category: "",
+      categoryId: null,
     });
+    setSelectedSubCategoryData(null);
 
     if (value.trim().length > 0 && subCategories.length > 0) {
       const filtered = subCategories.filter((subCat) => {
         const matchesName = subCat.name
           ?.toLowerCase()
           .includes(value.toLowerCase());
-
-        // If a main category is selected, restrict sub categories to that category
-        if (formData.categoryId) {
-          const subCatCategoryId =
-            subCat.category?.id ?? subCat.categoryId ?? null;
-          return matchesName && subCatCategoryId === formData.categoryId;
-        }
-
         return matchesName;
       });
 
@@ -368,19 +363,36 @@ const LogMood: React.FC = () => {
   };
 
   const handleCategorySelect = (category: Category) => {
-    // When main category changes, clear any selected sub category and related note
-    setFormData((prev) => ({
-      ...prev,
-      category: category.name,
-      categoryId: category.id,
-      subCategory: "",
-      subCategoryId: null,
-      addNote: "",
-    }));
-    setSelectedSubCategoryData(null);
-    setSubCategorySuggestions([]);
-    setShowSubCategorySuggestions(false);
-    setSelectedSubCategoryIndex(-1);
+    // When Life Circle (category) is selected, update form data
+    // If we have a selected subcategory, make sure we use the correct subcategory for this category
+    if (selectedSubCategoryData) {
+      const matchingSubCat = subCategories.find(
+        (sc) =>
+          sc.name.toLowerCase() === selectedSubCategoryData.name.toLowerCase() &&
+          (sc.category?.id === category.id || sc.categoryId === category.id)
+      );
+      if (matchingSubCat) {
+        setFormData((prev) => ({
+          ...prev,
+          category: category.name,
+          categoryId: category.id,
+          subCategoryId: matchingSubCat.id,
+        }));
+      } else {
+        setFormData((prev) => ({
+          ...prev,
+          category: category.name,
+          categoryId: category.id,
+        }));
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        category: category.name,
+        categoryId: category.id,
+      }));
+    }
+    setShowCategorySelection(false);
   };
 
   // Handle subcategory suggestion selection
@@ -396,24 +408,49 @@ const LogMood: React.FC = () => {
     if (subCategory.category) {
       categoryName = subCategory.category.name;
       categoryId = subCategory.category.id;
-      setSelectedCategories([subCategory.category.id]);
     } else if (subCategory.categoryId) {
       const category = categories.find((c) => c.id === subCategory.categoryId);
       if (category) {
         categoryName = category.name;
         categoryId = category.id;
-        setSelectedCategories([category.id]);
       }
     }
 
-    setFormData((prev) => ({
-      ...prev,
-      subCategory: subCategory.name,
-      subCategoryId: subCategory.id,
-      category: categoryName,
-      categoryId: categoryId,
-      addNote: "",
-    }));
+    // Check if there are multiple subcategories with the same name in different categories
+    const sameNameSubCats = subCategories.filter(
+      (sc) => sc.name.toLowerCase() === subCategory.name.toLowerCase()
+    );
+    
+    if (sameNameSubCats.length > 1) {
+      // Multiple categories for same subcategory name - show selection
+      const uniqueCategoryIds = Array.from(
+        new Set(
+          sameNameSubCats.map((sc) => sc.category?.id ?? sc.categoryId).filter((id): id is number => id !== undefined && id !== null)
+        )
+      );
+      setSelectedCategories(uniqueCategoryIds);
+      // Store the subcategory name but wait for category selection before setting subCategoryId
+      setFormData((prev) => ({
+        ...prev,
+        subCategory: subCategory.name,
+        subCategoryId: null, // Don't set yet - wait for category selection
+        category: "",
+        categoryId: null,
+        addNote: "",
+      }));
+      setShowCategorySelection(true);
+    } else {
+      // Single category - auto-select
+      setShowCategorySelection(false);
+      setFormData((prev) => ({
+        ...prev,
+        subCategory: subCategory.name,
+        subCategoryId: subCategory.id,
+        category: categoryName,
+        categoryId: categoryId,
+        addNote: "",
+      }));
+    }
   };
 
   // Handle keyboard navigation for subcategory
@@ -455,6 +492,62 @@ const LogMood: React.FC = () => {
     return emotionColors[emotion || ""] || "#6b7280";
   };
 
+  // Helper function to get emotion definition
+  const getEmotionDefinition = (emotion?: string): string => {
+    const emotionDefinitions: Record<string, string> = {
+      Enraged: "Feeling extremely angry and out of control. It's like your anger has reached its highest point, and you can't calm down.",
+      Furious: "Very, very angry. It's a stronger feeling than just being mad or annoyed, almost like an explosive emotion.",
+      Fuming: "Showing strong anger, almost like smoke coming out of your ears. You're so upset that it's hard to stay calm.",
+      Disgusted: "Feeling very upset or sickened by something. It's like you can't stand what's happening or what you're experiencing.",
+      Frightened: "Feeling scared or afraid. It's when something makes you feel really uneasy and worried about what might happen.",
+      Lonely: "Feeling sad because you're alone or disconnected from others. It's a deep sense of isolation where you miss having someone around.",
+      Depressed: "Feeling very sad for a long time. It's a heavy sadness that seems to stick with you and makes everything seem dull.",
+      Panicked: "Feeling sudden and intense fear or worry. It's when you're overwhelmed and find it hard to think clearly or stay calm.",
+      Nervous: "Feeling worried or uneasy about something. It's like having butterflies in your stomach because you're anxious about what's coming up.",
+      Frustrated: "Feeling upset because things aren't going as planned. It's a mix of annoyance and disappointment when you hit obstacles or problems.",
+      Angry: "Feeling strong displeasure or annoyance. It's when something bothers you a lot and makes you feel upset.",
+      Worried: "Feeling anxious or concerned about something that might happen. It's when you're preoccupied with thoughts of potential problems or issues.",
+      Miserable: "Feeling extremely unhappy or uncomfortable. It's a deep sense of unhappiness that makes everything seem worse.",
+      Discouraged: "Feeling disheartened or lacking confidence. It's like losing hope or motivation because things aren't going as you hoped.",
+      Shocked: "Feeling surprised or disturbed by something unexpected. It's a sudden, intense reaction to something that catches you off guard.",
+      Restless: "Feeling unable to relax or stay still. It's like having too much energy or worry, making it hard to find calm or comfort.",
+      Irritated: "Feeling annoyed or bothered by something. It's a persistent sense of discomfort or frustration, even if it's not overwhelming.",
+      Disappointed: "Feeling sad because something didn't turn out as expected. It's when reality falls short of what you hoped for or anticipated.",
+      Concerned: "Feeling worried about something. It's a mild form of anxiety or care about a situation that's important to you.",
+      Tired: "Feeling like you need rest or sleep. It's when your energy is low, and you might feel drained but not necessarily unhappy.",
+      Exhausted: "Feeling extremely tired. It's a state of being so low on energy that you need a lot of rest to recover.",
+      Hyper: "Feeling overly energetic and excited. It's like having too much energy to stay still and being really animated.",
+      Lively: "Feeling full of energy and enthusiasm. It's a sense of being excited and active, bringing a lot of spirit to whatever you're doing.",
+      Energized: "Feeling full of energy and ready to go. It's when you feel awake, active, and motivated to take on tasks.",
+      Satisfied: "Feeling pleased with how things are going. It's a sense of contentment and happiness with what you've achieved or have.",
+      Complacent: "Feeling satisfied but maybe a bit too comfortable. It's when you're okay with the way things are and not seeking change or improvement.",
+      Bored: "Feeling uninterested or restless because nothing is happening. It's a sense of dullness and lack of engagement with what's around you.",
+      Uneasy: "Feeling slightly worried or uncomfortable. It's a mild sense of discomfort or nervousness that makes you feel unsettled.",
+      Surprised: "Feeling astonished or amazed by something unexpected. It's a reaction to something that catches you off guard in a surprising way.",
+      Enthusiastic: "Feeling excited and eager about something. It's a high level of interest and energy about a topic or activity.",
+      Cheerful: "Feeling happy and full of joy. It's a bright and positive mood that makes you feel good and spread positivity.",
+      Optimistic: "Feeling hopeful about the future. It's a positive outlook where you believe things will get better, even if there are challenges.",
+      Focused: "Feeling concentrated and attentive to a task. It's being deeply engaged and determined to achieve something, without distractions.",
+      Thoughtful: "Feeling considerate and reflective. It's when you carefully think about others' feelings or ideas and act with care.",
+      Relaxed: "Feeling calm and at ease. It's a state where you're free from stress and worry, and you feel comfortable and serene.",
+      Inspired: "Feeling motivated and excited by something or someone. It's when you're driven to act or create because you've been deeply moved.",
+      Motivated: "Feeling driven to take action or achieve goals. It's a strong desire to pursue your goals and work towards what you want.",
+      Proud: "Feeling pleased with something you or someone else has done. It's a sense of accomplishment and self-worth that comes from achievement.",
+      Joyful: "Feeling great happiness and delight. It's an intense feeling of pleasure and contentment that brightens your day.",
+      Peaceful: "Feeling calm and free from worry. It's a state of tranquility and quiet where you feel relaxed and at ease.",
+      Hopeful: "Feeling optimistic about the future. It's a positive belief that things will improve and that better days are ahead.",
+      Comfortable: "Feeling relaxed and at ease. It's when you're in a state of physical or emotional well-being and feel content.",
+      Exhilarated: "Feeling extremely happy and excited. It's an intense and thrilling sense of joy and energy.",
+      Thrilled: "Feeling very excited and happy. It's a high level of joy and enthusiasm about something exciting.",
+      Blissful: "Feeling perfect happiness and contentment. It's an overwhelming sense of joy and peace that feels just right.",
+      Grateful: "Feeling thankful for something. It's recognizing and appreciating the good things in your life and feeling appreciative.",
+      Touched: "Feeling emotionally moved or affected by something. It's a deep sense of appreciation or warmth that impacts you deeply.",
+      Carefree: "Feeling relaxed and without worries. It's a state of lightheartedness where you don't have any major concerns.",
+      Serene: "Feeling calm and peaceful. It's a deep sense of tranquility and stillness where you feel completely at ease.",
+    };
+    return emotionDefinitions[emotion || ""] || "";
+  };
+
   // Helper function to get color for zone
   const getZoneColor = (zone?: string): string => {
     const zoneColors: Record<string, string> = {
@@ -473,14 +566,9 @@ const LogMood: React.FC = () => {
     impact: number,
     pleasantness: number
   ): EmotionZoneResult => {
-    // Internal lookup is defined for 1–7, but UI can use 1–10.
-    const mapToSevenPointScale = (value: number) => {
-      const scaled = Math.round((value / 10) * 7);
-      return Math.min(7, Math.max(1, scaled || 1));
-    };
-
-    const impactScale = mapToSevenPointScale(impact);
-    const pleasantnessScale = mapToSevenPointScale(pleasantness);
+    // UI now uses 1–7 scale directly
+    const impactScale = Math.min(7, Math.max(1, impact || 1));
+    const pleasantnessScale = Math.min(7, Math.max(1, pleasantness || 1));
 
     const emotionZoneLookup: Record<string, EmotionZoneResult> = {
       "1-1": { calculatedEmotion: "Depressed", calculatedZone: "Light Red" },
@@ -562,11 +650,15 @@ const LogMood: React.FC = () => {
 
   const handleSubmit = () => {
     if (!formData.categoryId) {
-      alert("Please select a main category");
+      alert("Please select a Life Circle");
       return;
     }
-    if (!formData.subCategoryId && !formData.addNote.trim()) {
-      alert("Please select a sub category or add a note");
+    if (!formData.subCategoryId) {
+      alert("Please select what is on top of your mind");
+      return;
+    }
+    if (!formData.impact || !formData.pleasantness) {
+      alert("Please set both impact and pleasantness scales");
       return;
     }
     setShowConfirmModal(true);
@@ -574,42 +666,11 @@ const LogMood: React.FC = () => {
 
   const handleConfirm = async () => {
     try {
-      const existingMood = moods.find(
-        (mood) =>
-          mood.name?.toLowerCase() ===
-          formData.feelingDescription.trim().toLowerCase()
-      );
-
-      let moodToUse = formData.feelingDescription;
-
-      if (!existingMood && formData.feelingDescription.trim()) {
-        try {
-          const defaultEmotion =
-            emotions.find((e) => e.name === formData.calculatedEmotion) ||
-            emotions[0];
-          const defaultZone =
-            zones.find((z) => z.name === formData.calculatedZone) || zones[0];
-
-          const newMoodData = {
-            name: formData.feelingDescription.trim(),
-            code: `CUSTOM_${Date.now().toString().slice(-8)}`,
-            emotionId: defaultEmotion ? defaultEmotion.id : 1,
-            zoneId: defaultZone ? defaultZone.id : 1,
-            status: false, // Set to false (pending) for admin review
-          };
-
-          await axios.post(`${SERVER_URL}`, newMoodData);
-          console.log("Custom mood added to master data with pending status");
-        } catch (moodError) {
-          console.error("Error creating mood in master data:", moodError);
-        }
-      }
-
       const moodLogData = {
         studentId: 1,
         date: formData.date,
         time: formData.time,
-        feelingDescription: moodToUse,
+        feelingDescription: formData.subCategory || "",
         categoryId: formData.categoryId || null,
         subCategoryId: formData.subCategoryId || null,
         addNote: formData.addNote || "",
@@ -628,13 +689,7 @@ const LogMood: React.FC = () => {
       );
 
       if (response.status === 201) {
-        if (!existingMood && formData.feelingDescription.trim()) {
-          alert(
-            "Mood logged successfully! Your custom mood has been submitted to admin for review."
-          );
-        } else {
-          alert("Mood logged successfully!");
-        }
+        alert("Mood logged successfully!");
         navigate("/student/mood-history");
       }
     } catch (error: any) {
@@ -758,8 +813,8 @@ const LogMood: React.FC = () => {
           </div>
         </div>
 
-        {/* Feeling Description Input */}
-        <div style={{ marginBottom: "28px", position: "relative" }}>
+        {/* What is on top of your mind? Input (uses subcategory data) */}
+        <div style={{ marginBottom: "32px", position: "relative" }}>
           <label
             style={{
               display: "block",
@@ -769,14 +824,15 @@ const LogMood: React.FC = () => {
               marginBottom: "8px",
             }}
           >
-            How are you feeling? (Select from suggestions or type your own)
+            What is on top of your mind?
           </label>
-          <textarea
-            ref={textareaRef}
-            placeholder="Type how you feel right now... (e.g., 'Happy - Feeling joyful today' or create your own description)"
-            value={formData.feelingDescription}
-            onChange={handleFeelingDescriptionChange}
-            onKeyDown={handleKeyDown}
+          <input
+            ref={subCategoryInputRef}
+            type="text"
+            placeholder="Type what's on top of your mind..."
+            value={formData.subCategory}
+            onChange={handleSubCategoryChange}
+            onKeyDown={handleSubCategoryKeyDown}
             style={{
               width: "100%",
               padding: "12px 16px",
@@ -787,10 +843,6 @@ const LogMood: React.FC = () => {
               background: "#f9f9f9",
               transition: "all 0.2s",
               boxSizing: "border-box",
-              resize: "vertical",
-              minHeight: "120px",
-              fontStyle: formData.feelingDescription ? "normal" : "italic",
-              color: formData.feelingDescription ? "#222" : "#999",
             }}
             onFocus={(e) => {
               e.target.style.outline = "none";
@@ -804,170 +856,40 @@ const LogMood: React.FC = () => {
               e.target.style.boxShadow = "none";
             }}
           />
-          {/* Autocomplete Suggestions Dropdown */}
-          {showSuggestions && autocompleteSuggestions.length > 0 && (
-            <div
-              ref={suggestionsRef}
-              className="absolute top-full left-0 right-0 bg-white border border-[#e0e0e0] rounded-[10px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] z-[1000] mt-1 max-h-[300px] overflow-y-auto"
-            >
-              <div className="p-2 px-4 bg-[#f9f9f9] border-b border-[#e0e0e0] text-xs text-[#666] font-semibold">
-                Suggested Moods (or keep typing to create your own)
-              </div>
-              {autocompleteSuggestions.map((mood, index) => (
-                <div
-                  key={mood.mood || index}
-                  onClick={() => handleSuggestionSelect(mood)}
-                  className={`px-4 py-3 cursor-pointer border-b ${
-                    index < autocompleteSuggestions.length - 1
-                      ? "border-[#f0f0f0]"
-                      : "border-none"
-                  } transition-colors duration-200 ${
-                    index === selectedSuggestionIndex
-                      ? "bg-[#f5f5f5]"
-                      : "bg-white"
-                  }`}
-                  onMouseEnter={() => setSelectedSuggestionIndex(index)}
-                  onMouseLeave={() => setSelectedSuggestionIndex(-1)}
-                >
-                  <div className="text-[15px] font-semibold text-[#222] leading-snug">
-                    {mood.mood}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {/* Helper text */}
-          <div className="text-xs text-[#888] mt-1.5 italic">
-            💡 Start typing to see suggestions, or create your own custom mood
-            description. Custom moods will be reviewed by admin and added to the
-            system.
-          </div>
-        </div>
-
-        {/* Q1: Main Category Selection */}
-        <div style={{ marginBottom: "32px" }}>
-          <label
-            style={{
-              display: "block",
-              fontSize: "14px",
-              fontWeight: "600",
-              color: "#444",
-              marginBottom: "8px",
-            }}
-          >
-            What is on the top of your mind today?
-          </label>
-          <p
-            style={{
-              fontSize: "12px",
-              color: "#777",
-              marginBottom: "12px",
-              fontStyle: "italic",
-            }}
-          >
-            This will help you understand the emotion you are currently going
-            through.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => handleCategorySelect(cat)}
-                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
-                  formData.categoryId === cat.id
-                    ? "bg-[#00c7b7] text-white border-[#00c7b7]"
-                    : "bg-white text-[#444] border-[#e0e0e0] hover:border-[#00c7b7]"
-                }`}
-                style={{
-                  cursor: "pointer",
-                }}
+          {/* Subcategory Autocomplete Suggestions Dropdown */}
+          {showSubCategorySuggestions &&
+            subCategorySuggestions.length > 0 && (
+              <div
+                ref={subCategorySuggestionsRef}
+                className="absolute top-full left-0 right-0 bg-white border border-[#e0e0e0] rounded-[10px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] z-[1000] mt-1 max-h-[300px] overflow-y-auto"
               >
-                {cat.name}
-              </button>
-            ))}
-          </div>
+                {subCategorySuggestions.map((subCat, index) => (
+                  <div
+                    key={subCat.id || index}
+                    onClick={() => handleSubCategorySelect(subCat)}
+                    className={`px-4 py-3 cursor-pointer border-b ${
+                      index < subCategorySuggestions.length - 1
+                        ? "border-[#f0f0f0]"
+                        : "border-none"
+                    } transition-colors duration-200 ${
+                      index === selectedSubCategoryIndex
+                        ? "bg-[#f5f5f5]"
+                        : "bg-white"
+                    }`}
+                    onMouseEnter={() => setSelectedSubCategoryIndex(index)}
+                    onMouseLeave={() => setSelectedSubCategoryIndex(-1)}
+                  >
+                    <div className="text-[15px] font-semibold text-[#222] leading-snug">
+                      {subCat.name}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
         </div>
 
-        {/* Q2: Sub Category Input (only shown after main category is selected) */}
-        {formData.categoryId && (
-          <div style={{ marginBottom: "32px", position: "relative" }}>
-            <label
-              style={{
-                display: "block",
-                fontSize: "14px",
-                fontWeight: "600",
-                color: "#444",
-                marginBottom: "8px",
-              }}
-            >
-              Sub category (auto-suggested)
-            </label>
-            <input
-              ref={subCategoryInputRef}
-              type="text"
-              placeholder="e.g., Outing With Family, Play With Family"
-              value={formData.subCategory}
-              onChange={handleSubCategoryChange}
-              onKeyDown={handleSubCategoryKeyDown}
-              style={{
-                width: "100%",
-                padding: "12px 16px",
-                border: "1px solid #e0e0e0",
-                borderRadius: "10px",
-                fontSize: "15px",
-                fontFamily: "inherit",
-                background: "#f9f9f9",
-                transition: "all 0.2s",
-                boxSizing: "border-box",
-              }}
-              onFocus={(e) => {
-                e.target.style.outline = "none";
-                e.target.style.borderColor = "#00c7b7";
-                e.target.style.background = "#fff";
-                e.target.style.boxShadow = "0 0 0 3px rgba(0, 199, 183, 0.1)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "#e0e0e0";
-                e.target.style.background = "#f9f9f9";
-                e.target.style.boxShadow = "none";
-              }}
-            />
-            {/* Subcategory Autocomplete Suggestions Dropdown */}
-            {showSubCategorySuggestions &&
-              subCategorySuggestions.length > 0 && (
-                <div
-                  ref={subCategorySuggestionsRef}
-                  className="absolute top-full left-0 right-0 bg-white border border-[#e0e0e0] rounded-[10px] shadow-[0_4px_12px_rgba(0,0,0,0.15)] z-[1000] mt-1 max-h-[300px] overflow-y-auto"
-                >
-                  {subCategorySuggestions.map((subCat, index) => (
-                    <div
-                      key={subCat.id || index}
-                      onClick={() => handleSubCategorySelect(subCat)}
-                      className={`px-4 py-3 cursor-pointer border-b ${
-                        index < subCategorySuggestions.length - 1
-                          ? "border-[#f0f0f0]"
-                          : "border-none"
-                      } transition-colors duration-200 ${
-                        index === selectedSubCategoryIndex
-                          ? "bg-[#f5f5f5]"
-                          : "bg-white"
-                      }`}
-                      onMouseEnter={() => setSelectedSubCategoryIndex(index)}
-                      onMouseLeave={() => setSelectedSubCategoryIndex(-1)}
-                    >
-                      <div className="text-[15px] font-semibold text-[#222] leading-snug">
-                        {subCat.name}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-          </div>
-        )}
-
-        {/* Add Note Field (only shown if subcategory not selected and category is selected) */}
-        {formData.categoryId && !formData.subCategoryId && (
+        {/* Life Circles (Category Selection) - shown when category needs to be selected or when auto-selected */}
+        {(showCategorySelection || formData.categoryId) && (
           <div style={{ marginBottom: "32px" }}>
             <label
               style={{
@@ -978,60 +900,53 @@ const LogMood: React.FC = () => {
                 marginBottom: "8px",
               }}
             >
-              Add note (if sub category doesn't apply)
+              Life Circles
             </label>
-            <textarea
-              placeholder="Explain your mood in more detail..."
-              value={formData.addNote}
-              onChange={(e) =>
-                setFormData({ ...formData, addNote: e.target.value })
-              }
-              style={{
-                width: "100%",
-                padding: "12px 16px",
-                border: "1px solid #e0e0e0",
-                borderRadius: "10px",
-                fontSize: "14px",
-                fontFamily: "inherit",
-                background: "#f9f9f9",
-                transition: "all 0.2s",
-                boxSizing: "border-box",
-                resize: "vertical",
-                minHeight: "100px",
-              }}
-              onFocus={(e) => {
-                e.target.style.outline = "none";
-                e.target.style.borderColor = "#00c7b7";
-                e.target.style.background = "#fff";
-                e.target.style.boxShadow = "0 0 0 3px rgba(0, 199, 183, 0.1)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "#e0e0e0";
-                e.target.style.background = "#f9f9f9";
-                e.target.style.boxShadow = "none";
-              }}
-            />
-            <div
-              style={{
-                fontSize: "12px",
-                color: "#888",
-                marginTop: "4px",
-                fontStyle: "italic",
-              }}
-            >
-              Note: This will be reviewed by Super Admin to create a new sub
-              category if needed.
+            {showCategorySelection && (
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "#777",
+                  marginBottom: "12px",
+                  fontStyle: "italic",
+                }}
+              >
+                Please select the appropriate Life Circle for your selection.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {categories
+                .filter((cat) =>
+                  showCategorySelection
+                    ? selectedCategories.includes(cat.id)
+                    : true
+                )
+                .map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleCategorySelect(cat)}
+                    className={`px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
+                      formData.categoryId === cat.id
+                        ? "bg-[#00c7b7] text-white border-[#00c7b7]"
+                        : "bg-white text-[#444] border-[#e0e0e0] hover:border-[#00c7b7]"
+                    }`}
+                    style={{
+                      cursor: "pointer",
+                    }}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
             </div>
           </div>
         )}
 
-        {/* Q3 & Q4: Sliders - only shown after category and subcategory (or note) are filled */}
-        {formData.categoryId &&
-          (formData.subCategoryId || formData.addNote.trim()) && (
+        {/* Sliders - only shown after category and subcategory are filled */}
+        {formData.categoryId && formData.subCategoryId && (
             <div className="mb-8">
               <h3 className="text-lg font-semibold text-[#444] mb-6">
-                Can you explain a little more about why you are experiencing
-                this emotion?
+                Please elaborate the impact and feeling for your selection from the scales below
               </h3>
 
               {/* Q3: Impact Slider */}
@@ -1051,8 +966,7 @@ const LogMood: React.FC = () => {
                       color: "#444",
                     }}
                   >
-                    On a scale of 1 to 10 how strongly do you feel about your
-                    selection?
+                    On a scale of 1 to 7, how strongly is this affecting you? (from low → high & long lasting)
                   </label>
                   <span
                     style={{
@@ -1061,7 +975,7 @@ const LogMood: React.FC = () => {
                       color: "#444",
                     }}
                   >
-                    {formData.impact}/10
+                    {formData.impact}/7
                   </span>
                 </div>
                 <div
@@ -1080,14 +994,12 @@ const LogMood: React.FC = () => {
                       lineHeight: "1.5",
                     }}
                   >
-                    <strong>Scale:</strong> Rate how strongly you feel about
-                    your selection on a scale from 1 to 10, with 1 being the
-                    lowest and 10 being the highest.
+                    <strong>Scale:</strong> Rate how strongly this is affecting you on a scale from 1 to 7, with 1 being low and 7 being high & long lasting.
                   </div>
                   <input
                     type="range"
                     min="1"
-                    max="10"
+                    max="7"
                     value={formData.impact}
                     onChange={(e) =>
                       setFormData({
@@ -1106,13 +1018,13 @@ const LogMood: React.FC = () => {
                       marginTop: "8px",
                     }}
                   >
-                    <span>1 - Lowest</span>
-                    <span>10 - Highest</span>
+                    <span>1 - Low</span>
+                    <span>7 - High & Long Lasting</span>
                   </div>
                 </div>
               </div>
 
-              {/* Q4: Pleasantness Slider */}
+              {/* Pleasantness Slider */}
               <div style={{ marginBottom: "32px" }}>
                 <div
                   style={{
@@ -1129,8 +1041,7 @@ const LogMood: React.FC = () => {
                       color: "#444",
                     }}
                   >
-                    On a scale of 1 to 10 how happy do you feel about your
-                    selection?
+                    On a scale of 1 to 7, how does this feel for you? (from very uncomfortable → comfortable)
                   </label>
                   <span
                     style={{
@@ -1139,7 +1050,7 @@ const LogMood: React.FC = () => {
                       color: "#444",
                     }}
                   >
-                    {formData.pleasantness}/10
+                    {formData.pleasantness}/7
                   </span>
                 </div>
                 <div
@@ -1158,14 +1069,12 @@ const LogMood: React.FC = () => {
                       lineHeight: "1.5",
                     }}
                   >
-                    <strong>Scale:</strong> Rate how happy you feel about your
-                    selection on a scale from 1 to 10, with 1 being the lowest
-                    and 10 being the highest.
+                    <strong>Scale:</strong> Rate how this feels for you on a scale from 1 to 7, with 1 being very uncomfortable and 7 being comfortable.
                   </div>
                   <input
                     type="range"
                     min="1"
-                    max="10"
+                    max="7"
                     value={formData.pleasantness}
                     onChange={(e) =>
                       setFormData({
@@ -1184,8 +1093,8 @@ const LogMood: React.FC = () => {
                       marginTop: "8px",
                     }}
                   >
-                    <span>1 - Lowest</span>
-                    <span>10 - Highest</span>
+                    <span>1 - Very Uncomfortable</span>
+                    <span>7 - Comfortable</span>
                   </div>
                 </div>
               </div>
@@ -1196,20 +1105,27 @@ const LogMood: React.FC = () => {
                   <div className="text-sm text-[#666] mb-3">
                     Calculated based on your Impact and Pleasantness values:
                   </div>
-                  <div className="flex items-center gap-4 flex-wrap">
+                  <div className="space-y-3">
                     {formData.calculatedEmotion && (
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-6 h-6 rounded-full border-2 border-white shadow-[0_2px_4px_rgba(0,0,0,0.1)]"
-                          style={{
-                            backgroundColor: getEmotionColor(
-                              formData.calculatedEmotion
-                            ),
-                          }}
-                        />
-                        <span className="text-sm font-semibold text-[#222]">
-                          {formData.calculatedEmotion}
-                        </span>
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div
+                            className="w-6 h-6 rounded-full border-2 border-white shadow-[0_2px_4px_rgba(0,0,0,0.1)]"
+                            style={{
+                              backgroundColor: getEmotionColor(
+                                formData.calculatedEmotion
+                              ),
+                            }}
+                          />
+                          <span className="text-base font-semibold text-[#222]">
+                            {formData.calculatedEmotion}
+                          </span>
+                        </div>
+                        {getEmotionDefinition(formData.calculatedEmotion) && (
+                          <div className="text-sm text-[#555] ml-8 italic">
+                            {getEmotionDefinition(formData.calculatedEmotion)}
+                          </div>
+                        )}
                       </div>
                     )}
                     {formData.calculatedZone && (
@@ -1262,28 +1178,67 @@ const LogMood: React.FC = () => {
           </button>
           <button
             onClick={handleSubmit}
+            disabled={
+              !formData.categoryId ||
+              !formData.subCategoryId ||
+              !formData.impact ||
+              !formData.pleasantness
+            }
             style={{
               padding: "12px 28px",
               borderRadius: "10px",
               fontSize: "15px",
               fontWeight: "600",
-              cursor: "pointer",
+              cursor:
+                !formData.categoryId ||
+                !formData.subCategoryId ||
+                !formData.impact ||
+                !formData.pleasantness
+                  ? "not-allowed"
+                  : "pointer",
               transition: "all 0.2s",
               border: "none",
               fontFamily: "inherit",
-              background: "#00c7b7",
+              background:
+                !formData.categoryId ||
+                !formData.subCategoryId ||
+                !formData.impact ||
+                !formData.pleasantness
+                  ? "#cccccc"
+                  : "#00c7b7",
               color: "#fff",
+              opacity:
+                !formData.categoryId ||
+                !formData.subCategoryId ||
+                !formData.impact ||
+                !formData.pleasantness
+                  ? 0.6
+                  : 1,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#009e8e";
-              e.currentTarget.style.transform = "translateY(-1px)";
-              e.currentTarget.style.boxShadow =
-                "0 4px 12px rgba(0, 199, 183, 0.3)";
+              if (
+                formData.categoryId &&
+                formData.subCategoryId &&
+                formData.impact &&
+                formData.pleasantness
+              ) {
+                e.currentTarget.style.background = "#009e8e";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow =
+                  "0 4px 12px rgba(0, 199, 183, 0.3)";
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#00c7b7";
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "none";
+              if (
+                formData.categoryId &&
+                formData.subCategoryId &&
+                formData.impact &&
+                formData.pleasantness
+              ) {
+                e.currentTarget.style.background = "#00c7b7";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }
             }}
           >
             Submit Mood Log
@@ -1380,20 +1335,6 @@ const LogMood: React.FC = () => {
                 }}
               >
                 <div style={{ display: "grid", gap: "16px" }}>
-                  <div>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#888",
-                        marginBottom: "4px",
-                      }}
-                    >
-                      Feeling Description
-                    </div>
-                    <div style={{ fontWeight: "600" }}>
-                      {formData.feelingDescription || "N/A"}
-                    </div>
-                  </div>
                   {formData.subCategory && (
                     <div>
                       <div
@@ -1403,26 +1344,10 @@ const LogMood: React.FC = () => {
                           marginBottom: "4px",
                         }}
                       >
-                        Sub Category
+                        What is on top of your mind?
                       </div>
                       <div style={{ fontWeight: "600" }}>
                         {formData.subCategory}
-                      </div>
-                    </div>
-                  )}
-                  {formData.addNote && (
-                    <div>
-                      <div
-                        style={{
-                          fontSize: "12px",
-                          color: "#888",
-                          marginBottom: "4px",
-                        }}
-                      >
-                        Add Note
-                      </div>
-                      <div style={{ fontWeight: "600" }}>
-                        {formData.addNote}
                       </div>
                     </div>
                   )}
@@ -1435,7 +1360,7 @@ const LogMood: React.FC = () => {
                           marginBottom: "4px",
                         }}
                       >
-                        Category
+                        Life Circles
                       </div>
                       <div style={{ fontWeight: "600" }}>
                         {formData.category}
@@ -1453,8 +1378,8 @@ const LogMood: React.FC = () => {
                       Impact & Pleasantness
                     </div>
                     <div style={{ fontWeight: "600" }}>
-                      Impact: {formData.impact}/10 | Pleasantness:{" "}
-                      {formData.pleasantness}/10
+                      Impact: {formData.impact}/7 | Pleasantness:{" "}
+                      {formData.pleasantness}/7
                     </div>
                   </div>
                   {(formData.calculatedEmotion || formData.calculatedZone) && (

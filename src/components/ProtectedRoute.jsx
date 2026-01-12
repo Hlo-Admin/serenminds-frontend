@@ -27,11 +27,14 @@ const ProtectedRoute = ({ children }) => {
     // Redirect to appropriate login page based on route
     const isStudentRoute = location.pathname.startsWith("/student");
     const isSchoolRoute = location.pathname.startsWith("/school");
+    const isParentRoute = location.pathname.startsWith("/parent");
     let redirectTo = "/login";
     if (isStudentRoute) {
       redirectTo = "/student/login";
     } else if (isSchoolRoute) {
       redirectTo = "/school/login";
+    } else if (isParentRoute) {
+      redirectTo = "/parent/login";
     }
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
@@ -39,7 +42,8 @@ const ProtectedRoute = ({ children }) => {
   // Role-based access control
   const isStudentRoute = location.pathname.startsWith("/student");
   const isSchoolRoute = location.pathname.startsWith("/school");
-  const isAdminRoute = !isStudentRoute && !isSchoolRoute;
+  const isParentRoute = location.pathname.startsWith("/parent");
+  const isAdminRoute = !isStudentRoute && !isSchoolRoute && !isParentRoute;
 
   // Check if user is trying to access a route they don't have permission for
   if (userType === "student" && !isStudentRoute) {
@@ -52,8 +56,13 @@ const ProtectedRoute = ({ children }) => {
     return <Navigate to="/school/dashboard" replace />;
   }
 
-  if (userType === "admin" && (isStudentRoute || isSchoolRoute)) {
-    // Admin trying to access student or school route - redirect to admin dashboard
+  if (userType === "parent" && !isParentRoute) {
+    // Parent trying to access non-parent route - redirect to parent dashboard
+    return <Navigate to="/parent/dashboard" replace />;
+  }
+
+  if (userType === "admin" && (isStudentRoute || isSchoolRoute || isParentRoute)) {
+    // Admin trying to access student, school, or parent route - redirect to admin dashboard
     return <Navigate to="/dashboard" replace />;
   }
 

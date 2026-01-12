@@ -32,6 +32,8 @@ export const AuthProvider = ({ children }) => {
             userType = "student";
           } else if (tokenPayload.type === "school") {
             userType = "school";
+          } else if (tokenPayload.type === "parent") {
+            userType = "parent";
           } else if (tokenPayload.role === "admin" || tokenPayload.type === "admin") {
             userType = "admin";
           }
@@ -40,6 +42,8 @@ export const AuthProvider = ({ children }) => {
             userType = "student";
           } else if (userData.schoolId) {
             userType = "school";
+          } else if (userData.type === "parent" || userData.role === "parent") {
+            userType = "parent";
           }
         }
         userData.userType = userType;
@@ -59,6 +63,8 @@ export const AuthProvider = ({ children }) => {
         userType = "student";
       } else if (tokenPayload.type === "school") {
         userType = "school";
+      } else if (tokenPayload.type === "parent") {
+        userType = "parent";
       } else if (tokenPayload.role === "admin" || tokenPayload.type === "admin") {
         userType = "admin";
       }
@@ -68,6 +74,8 @@ export const AuthProvider = ({ children }) => {
         userType = "student";
       } else if (userData.type === "school" || userData.schoolId) {
         userType = "school";
+      } else if (userData.type === "parent" || userData.role === "parent") {
+        userType = "parent";
       }
     }
     
@@ -94,7 +102,7 @@ export const AuthProvider = ({ children }) => {
 
   const getUserType = () => {
     if (!user) return null;
-    return user.userType || (user.studentId ? "student" : user.schoolId ? "school" : "admin");
+    return user.userType || (user.studentId ? "student" : user.schoolId ? "school" : user.type === "parent" || user.role === "parent" ? "parent" : "admin");
   };
 
   const value = {
