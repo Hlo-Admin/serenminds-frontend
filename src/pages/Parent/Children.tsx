@@ -67,10 +67,12 @@ const Children: React.FC = () => {
 
   const getZoneColor = (zone: string): string => {
     const colors: { [key: string]: string } = {
-      "Green Zone": "#2ecc71",
-      "Yellow Zone": "#f39c12",
-      "Orange Zone": "#e67e22",
-      "Red Zone": "#e74c3c",
+      "Green Zone": "#10b981",
+      "Yellow Zone": "#f59e0b",
+      "Brown Zone": "#8b4513",
+      "Light Red Zone": "#ff6b6b",
+      "Dark Red Zone": "#dc2626",
+      "Blue Zone": "#3b82f6",
     };
     return colors[zone] || "#ccc";
   };
